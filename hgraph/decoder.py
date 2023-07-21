@@ -407,18 +407,20 @@ class HierMPNDecoder(nn.Module):
                                     icls.append(_)
                                 except:
                                     print("Error with pair",(smiles,x))
+                                    with open('/content/error.txt',"w+") as wFile:
+                                        _ = smiles+" "+x+"\n"
+                                        wFile.write(_)
                                     errors+=1
                             if errors==0:
                                 restart = False
-                            
-                            #End modification
-                            cands = inter_cands if len(attach_points) <= 2 else [ (x[0],x[-1]) for x in inter_cands ]
-                            cand_vecs = self.enum_attach(hgraph, cands, icls, nth_child)
+                                #End modification
+                                cands = inter_cands if len(attach_points) <= 2 else [ (x[0],x[-1]) for x in inter_cands ]
+                                cand_vecs = self.enum_attach(hgraph, cands, icls, nth_child)
+        
+                                batch_idx = batch_idx.new_tensor( [bid] * len(inter_cands) )
+                                assm_scores = self.get_assm_score(src_graph_vecs, batch_idx, cand_vecs).tolist()
+                                sorted_cands = sorted( list(zip(inter_cands, assm_scores)), key = lambda x:x[1], reverse=True )
     
-                            batch_idx = batch_idx.new_tensor( [bid] * len(inter_cands) )
-                            assm_scores = self.get_assm_score(src_graph_vecs, batch_idx, cand_vecs).tolist()
-                            sorted_cands = sorted( list(zip(inter_cands, assm_scores)), key = lambda x:x[1], reverse=True )
-
                     for inter_label,_ in sorted_cands:
                         inter_label = list(zip(inter_label, attach_points))
                         if graph_batch.try_add_mol(bid, ismiles, inter_label):
