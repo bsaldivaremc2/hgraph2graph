@@ -395,7 +395,15 @@ class HierMPNDecoder(nn.Module):
                         nth_child = 0
                     else:
                         nth_child = tree_batch.graph.in_degree(fa_node)
-                        icls = [self.vocab[ (smiles,x) ][1] for x in anchor_smiles]
+                        icls = [self.vocab[ (smiles,x) ][1] for x in anchor_smiles]# Modify this to skip errors
+                        icls = [ ]# Modify this to skip errors
+                        for x in anchor_smiles:
+                            try:
+                                _ = self.vocab[ (smiles,x) ][1]
+                                icls.append(_)
+                            except:
+                                print("Error with pair",(smiles,x))
+                        #End modification
                         cands = inter_cands if len(attach_points) <= 2 else [ (x[0],x[-1]) for x in inter_cands ]
                         cand_vecs = self.enum_attach(hgraph, cands, icls, nth_child)
 
