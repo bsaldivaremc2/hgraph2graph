@@ -395,7 +395,7 @@ class HierMPNDecoder(nn.Module):
                         nth_child = 0
                     else:
                         nth_child = tree_batch.graph.in_degree(fa_node)
-                        icls = [self.vocab[ (smiles,x) ][1] for x in anchor_smiles]# Modify this to skip errors
+                        #icls = [self.vocab[ (smiles,x) ][1] for x in anchor_smiles]# Modify this to skip errors
                         icls = [ ]# Modify this to skip errors
                         for x in anchor_smiles:
                             try:
