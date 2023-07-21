@@ -415,6 +415,7 @@ class HierMPNDecoder(nn.Module):
                                     if len(icls)==valid_output_number:
                                         errors=0
                                         restart=False
+                                        break #for smiles pair
                                 except:
                                     print("Error with pair",(smiles,x))
                                     with open('error.txt',"a") as wFile:
@@ -430,6 +431,7 @@ class HierMPNDecoder(nn.Module):
                                 batch_idx = batch_idx.new_tensor( [bid] * len(inter_cands) )
                                 assm_scores = self.get_assm_score(src_graph_vecs, batch_idx, cand_vecs).tolist()
                                 sorted_cands = sorted( list(zip(inter_cands, assm_scores)), key = lambda x:x[1], reverse=True )
+                                break #while
     
                     for inter_label,_ in sorted_cands:
                         inter_label = list(zip(inter_label, attach_points))
