@@ -381,28 +381,36 @@ class HierMPNDecoder(nn.Module):
                 cls_beam = range(beam) if greedy else shuf_idx[i]
                 for kk in cls_beam: #try until one is chemically valid
                     if success: break
-                    clab, ilab = cls_topk[i][kk], icls_topk[i][kk]
-                    node_feature = batch_idx.new_tensor( [clab, ilab] )
-                    tree_batch.set_node_feature(new_node, node_feature)
-                    smiles, ismiles = self.vocab.get_smiles(clab), self.vocab.get_ismiles(ilab)
-                    fa_cluster, _, fa_used = tree_batch.get_cluster(fa_node)
-                    inter_cands, anchor_smiles, attach_points = graph_batch.get_assm_cands(fa_cluster, fa_used, ismiles)
-
-                    if len(inter_cands) == 0:
-                        continue
-                    elif len(inter_cands) == 1:
-                        sorted_cands = [(inter_cands[0], 0)]
-                        nth_child = 0
-                    else:
-                        nth_child = tree_batch.graph.in_degree(fa_node)
-                        #icls = [self.vocab[ (smiles,x) ][1] for x in anchor_smiles]# Modify this to skip errors
-                        icls = [ ]# Modify this to skip errors
-                        for x in anchor_smiles:
-                            try:
-                                _ = self.vocab[ (smiles,x) ][1]
-                                icls.append(_)
-                            except:
-                                print("Error with pair",(smiles,x))
+                    #Start modification
+                    restart=True#added
+                    while restart:#added
+                        clab, ilab = cls_topk[i][kk], icls_topk[i][kk]
+                        node_feature = batch_idx.new_tensor( [clab, ilab] )
+                        tree_batch.set_node_feature(new_node, node_feature)
+                        smiles, ismiles = self.vocab.get_smiles(clab), self.vocab.get_ismiles(ilab)
+                        fa_cluster, _, fa_used = tree_batch.get_cluster(fa_node)
+                        inter_cands, anchor_smiles, attach_points = graph_batch.get_assm_cands(fa_cluster, fa_used, ismiles)
+    
+                        if len(inter_cands) == 0:
+                            continue
+                        elif len(inter_cands) == 1:
+                            sorted_cands = [(inter_cands[0], 0)]
+                            nth_child = 0
+                        else:
+                            nth_child = tree_batch.graph.in_degree(fa_node)
+                            #icls = [self.vocab[ (smiles,x) ][1] for x in anchor_smiles]# Modify this to skip errors
+                            icls = [ ]# Modify this to skip errors
+                            errors=0
+                            for x in anchor_smiles:
+                                try:
+                                    _ = self.vocab[ (smiles,x) ][1]
+                                    icls.append(_)
+                                except:
+                                    print("Error with pair",(smiles,x))
+                                    errors+=1
+                            if errors==0:
+                                restart = False
+                            
                         #End modification
                         cands = inter_cands if len(attach_points) <= 2 else [ (x[0],x[-1]) for x in inter_cands ]
                         cand_vecs = self.enum_attach(hgraph, cands, icls, nth_child)
