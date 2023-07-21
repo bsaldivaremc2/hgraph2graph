@@ -419,14 +419,14 @@ class HierMPNDecoder(nn.Module):
                             assm_scores = self.get_assm_score(src_graph_vecs, batch_idx, cand_vecs).tolist()
                             sorted_cands = sorted( list(zip(inter_cands, assm_scores)), key = lambda x:x[1], reverse=True )
 
-                        for inter_label,_ in sorted_cands:
-                            inter_label = list(zip(inter_label, attach_points))
-                            if graph_batch.try_add_mol(bid, ismiles, inter_label):
-                                new_atoms, new_bonds, attached = graph_batch.add_mol(bid, ismiles, inter_label, nth_child)
-                                tree_batch.register_cgraph(new_node, new_atoms, new_bonds, attached)
-                                tree_batch.update_attached(fa_node, inter_label)
-                                success = True
-                                break
+                    for inter_label,_ in sorted_cands:
+                        inter_label = list(zip(inter_label, attach_points))
+                        if graph_batch.try_add_mol(bid, ismiles, inter_label):
+                            new_atoms, new_bonds, attached = graph_batch.add_mol(bid, ismiles, inter_label, nth_child)
+                            tree_batch.register_cgraph(new_node, new_atoms, new_bonds, attached)
+                            tree_batch.update_attached(fa_node, inter_label)
+                            success = True
+                            break
 
                 if not success: #force backtrack
                     child = stack[bid].pop() #pop the dummy new_node which can't be added
