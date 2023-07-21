@@ -411,22 +411,22 @@ class HierMPNDecoder(nn.Module):
                             if errors==0:
                                 restart = False
                             
-                        #End modification
-                        cands = inter_cands if len(attach_points) <= 2 else [ (x[0],x[-1]) for x in inter_cands ]
-                        cand_vecs = self.enum_attach(hgraph, cands, icls, nth_child)
+                            #End modification
+                            cands = inter_cands if len(attach_points) <= 2 else [ (x[0],x[-1]) for x in inter_cands ]
+                            cand_vecs = self.enum_attach(hgraph, cands, icls, nth_child)
+    
+                            batch_idx = batch_idx.new_tensor( [bid] * len(inter_cands) )
+                            assm_scores = self.get_assm_score(src_graph_vecs, batch_idx, cand_vecs).tolist()
+                            sorted_cands = sorted( list(zip(inter_cands, assm_scores)), key = lambda x:x[1], reverse=True )
 
-                        batch_idx = batch_idx.new_tensor( [bid] * len(inter_cands) )
-                        assm_scores = self.get_assm_score(src_graph_vecs, batch_idx, cand_vecs).tolist()
-                        sorted_cands = sorted( list(zip(inter_cands, assm_scores)), key = lambda x:x[1], reverse=True )
-
-                    for inter_label,_ in sorted_cands:
-                        inter_label = list(zip(inter_label, attach_points))
-                        if graph_batch.try_add_mol(bid, ismiles, inter_label):
-                            new_atoms, new_bonds, attached = graph_batch.add_mol(bid, ismiles, inter_label, nth_child)
-                            tree_batch.register_cgraph(new_node, new_atoms, new_bonds, attached)
-                            tree_batch.update_attached(fa_node, inter_label)
-                            success = True
-                            break
+                        for inter_label,_ in sorted_cands:
+                            inter_label = list(zip(inter_label, attach_points))
+                            if graph_batch.try_add_mol(bid, ismiles, inter_label):
+                                new_atoms, new_bonds, attached = graph_batch.add_mol(bid, ismiles, inter_label, nth_child)
+                                tree_batch.register_cgraph(new_node, new_atoms, new_bonds, attached)
+                                tree_batch.update_attached(fa_node, inter_label)
+                                success = True
+                                break
 
                 if not success: #force backtrack
                     child = stack[bid].pop() #pop the dummy new_node which can't be added
