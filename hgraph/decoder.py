@@ -382,6 +382,14 @@ class HierMPNDecoder(nn.Module):
                 for kk in cls_beam: #try until one is chemically valid
                     if success: break
                     #Start modification
+                    clab, ilab = cls_topk[i][kk], icls_topk[i][kk]
+                    node_feature = batch_idx.new_tensor( [clab, ilab] )
+                    tree_batch.set_node_feature(new_node, node_feature)
+                    smiles, ismiles = self.vocab.get_smiles(clab), self.vocab.get_ismiles(ilab)
+                    fa_cluster, _, fa_used = tree_batch.get_cluster(fa_node)
+                    inter_cands, anchor_smiles, attach_points = graph_batch.get_assm_cands(fa_cluster, fa_used, ismiles)
+                    valid_output_number = len(anchor_smiles)
+                    icls = [ ]# Modify this to skip errors
                     restart=True#added
                     while restart:#added
                         clab, ilab = cls_topk[i][kk], icls_topk[i][kk]
@@ -399,15 +407,17 @@ class HierMPNDecoder(nn.Module):
                         else:
                             nth_child = tree_batch.graph.in_degree(fa_node)
                             #icls = [self.vocab[ (smiles,x) ][1] for x in anchor_smiles]# Modify this to skip errors
-                            icls = [ ]# Modify this to skip errors
                             errors=0
                             for x in anchor_smiles:
                                 try:
                                     _ = self.vocab[ (smiles,x) ][1]
                                     icls.append(_)
+                                    if len(icls)==valid_output_number:
+                                        errors=0
+                                        restart=False
                                 except:
                                     print("Error with pair",(smiles,x))
-                                    with open('/content/error.txt',"w+") as wFile:
+                                    with open('error.txt',"a") as wFile:
                                         _ = smiles+" "+x+"\n"
                                         wFile.write(_)
                                     errors+=1
