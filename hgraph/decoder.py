@@ -388,8 +388,8 @@ class HierMPNDecoder(nn.Module):
                     fa_cluster, _, fa_used = tree_batch.get_cluster(fa_node)
                     inter_cands, anchor_smiles, attach_points = graph_batch.get_assm_cands(fa_cluster, fa_used, ismiles)
                     #Start modification
-                    if len(anchor_smiles)>1:
-                        continue
+                    #if len(anchor_smiles)>1:
+                        #continue
                     #end mod
                     if len(inter_cands) == 0:
                         continue
