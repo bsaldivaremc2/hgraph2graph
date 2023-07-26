@@ -18,6 +18,13 @@ And then run `pip install .`. Additional dependency for property-guided finetuni
 * For graph generation, each line of a training file is a SMILES string of a molecule
 * For graph translation, each line of a training file is a pair of molecules (molA, molB) that are similar to each other but molB has better chemical properties. Please see `data/qed/train_pairs.txt`. The test file is a list of molecules to be optimized. Please see `data/qed/test.txt`.
 
+## Molecule generation with pre-trained model:  
+The original vocab list does not work with the provided pre-trained model. It generates this issue: https://github.com/wengong-jin/hgraph2graph/issues/47.
+I included the motifs that were causing the issue in the provided vocab list and replaced 27 less used motif pairs (seen after 800 million times.)
+```
+python generate.py --vocab data/chembl/recovered_vocab_2000.txt --model ckpt/chembl-pretrained/model.ckpt --nsamples 1000
+```
+
 ## Molecule generation pretraining procedure
 We can train a molecular language model on a large corpus of unlabeled molecules. We have uploaded a model checkpoint pre-trained on ChEMBL dataset in `ckpt/chembl-pretrained/model.ckpt`. If you wish to train your own language model, please follow the steps below:
 
