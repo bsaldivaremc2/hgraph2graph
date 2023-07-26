@@ -1,3 +1,5 @@
+# This is NOT my code, nor work, nor paper nor group. I just fixed some bugs to make it work!
+
 # Hierarchical Generation of Molecular Graphs using Structural Motifs
 
 Our paper is at https://arxiv.org/pdf/2002.03230.pdf
