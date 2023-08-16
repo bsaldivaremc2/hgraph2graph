@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import DataLoader
+import sys
+import gc
+
 
 import rdkit
 import math, random, sys
@@ -10,6 +13,12 @@ import numpy as np
 import argparse
 import os
 from tqdm.auto import tqdm
+import traceback
+import numpy as np
+import logging
+import os
+from datetime import datetime
+
 
 from hgraph import *
 
@@ -47,18 +56,45 @@ parser.add_argument('--anneal_rate', type=float, default=0.9)
 parser.add_argument('--anneal_iter', type=int, default=25000)
 parser.add_argument('--print_iter', type=int, default=50)
 parser.add_argument('--save_iter', type=int, default=5000)
+parser.add_argument('--log_name', type=str, default="train_log")
+#parser.add_argument('--encoder_device', type=str, default='cuda:0')
+#parser.add_argument('--decoder_device', type=str, default='cuda:1')
+
 
 args = parser.parse_args()
 print(args)
+print("Setting logger")
+time_now = datetime.now().strftime("%Y%m%d-%H%M%S")
+_log_file = "{}_{}.log".format(args.log_name,time_now)
+logging.basicConfig(filename=_log_file, filemode='a', format='%(name)s - %(levelname)s - %(message)s',level=10)
+def log_msg(msg):
+    time_now = datetime.now().strftime("%Y%m%d-%H%M%S")
+    _m = "{}: {}.".format(time_now,msg)
+    print(_m)
+    logging.info(_m)
+#
+log_msg("Finished args parsing")
 
 torch.manual_seed(args.seed)
 random.seed(args.seed)
 
 vocab = [x.strip("\r\n ").split() for x in open(args.vocab)] 
 args.vocab = PairVocab(vocab)
-
+log_msg("Finished vocab parsing")
 model = HierVAE(args).cuda()
-print("Model #Params: %dK" % (sum([x.nelement() for x in model.parameters()]) / 1000,))
+#model = HierVAE(args).to('cuda:0')
+#model = HierVAE(args).to('cuda:1')
+
+#model = HierVAE(args)
+#if torch.cuda.device_count()>1:
+#    model= nn.DataParallel(model).cuda()
+#model.to("cuda")
+#device = torch.device("cuda")
+#model.cuda()
+log_msg("Finished loading model")
+m = "Model #Params: %dK" % (sum([x.nelement() for x in model.parameters()]) / 1000,)
+print(m)
+log_msg(m)
 
 for param in model.parameters():
     if param.dim() == 1:
@@ -70,7 +106,7 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 scheduler = lr_scheduler.ExponentialLR(optimizer, args.anneal_rate)
 
 if args.load_model:
-    print('continuing from checkpoint ' + args.load_model)
+    log_msg('continuing from checkpoint ' + args.load_model)
     model_state, optimizer_state, total_step, beta = torch.load(args.load_model)
     model.load_state_dict(model_state)
     optimizer.load_state_dict(optimizer_state)
@@ -81,25 +117,56 @@ param_norm = lambda m: math.sqrt(sum([p.norm().item() ** 2 for p in m.parameters
 grad_norm = lambda m: math.sqrt(sum([p.grad.norm().item() ** 2 for p in m.parameters() if p.grad is not None]))
 
 meters = np.zeros(6)
+ref_type = type(torch.tensor([0]))
+m="Starting epoch"
+print(m)
+log_msg(m)
 for epoch in range(args.epoch):
     dataset = DataFolder(args.train, args.batch_size)
+    m="Loaded dataset per epoch"
+    print(m)
+    log_msg(m)
+    _nbatch = 0
+    _tbatch = len(dataset)
 
     for batch in tqdm(dataset):
         total_step += 1
         model.zero_grad()
         loss, kl_div, wacc, iacc, tacc, sacc = model(*batch, beta=beta)
-
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
         optimizer.step()
-
         #meters = meters + np.array([kl_div, loss.item(), wacc * 100, iacc * 100, tacc * 100, sacc * 100]) 
         #Change because of : https://github.com/wengong-jin/hgraph2graph/issues/40
-        meters = meters + np.array([kl_div, loss.item(), wacc.cpu() * 100, iacc.cpu() * 100, tacc.cpu() * 100, sacc.cpu() * 100])
+        ms = [kl_div,loss.item(),wacc,iacc,tacc,sacc]
+        msf= [1,1,100,100,100,100]
+        for _i,_m_mf in enumerate(zip(ms,msf)):
+            _m,_mf = _m_mf[0],_m_mf[1]
+            if type(_m)==ref_type:
+                _m = _m.cpu().numpy()
+            ms[_i] = _m * _mf
+        umeters = np.array(ms)
+        meters = meters + umeters
+        #meters = meters + np.array([kl_div, loss.item(), wacc.cpu() * 100, iacc.cpu() * 100, tacc.cpu() * 100, sacc.cpu() * 100])
 
         if total_step % args.print_iter == 0:
             meters /= args.print_iter
-            print("[%d] Beta: %.3f, KL: %.2f, loss: %.3f, Word: %.2f, %.2f, Topo: %.2f, Assm: %.2f, PNorm: %.2f, GNorm: %.2f" % (total_step, beta, meters[0], meters[1], meters[2], meters[3], meters[4], meters[5], param_norm(model), grad_norm(model)))
+            m="[%d] Beta: %.3f, KL: %.2f, loss: %.3f, Word: %.2f, %.2f, Topo: %.2f, Assm: %.2f, PNorm: %.2f, GNorm: %.2f" % (total_step, beta, meters[0], meters[1], meters[2], meters[3], meters[4], meters[5], param_norm(model), grad_norm(model))
+            #print(m)
+            log_msg(m)
+            _batch_pos="Batch {}/{}".format(_nbatch,_tbatch-1)
+            m=_batch_pos
+            #print(m)
+            log_msg(m)
+            m=_batch_pos+" torch.cuda.memory_allocated: %fGB"%(torch.cuda.memory_allocated(0)/1024/1024/1024)
+            #print(m)
+            log_msg(m)
+            m=_batch_pos+" torch.cuda.memory_reserved: %fGB"%(torch.cuda.memory_reserved(0)/1024/1024/1024)
+            #print(m)
+            log_msg(m)
+            m=_batch_pos+" torch.cuda.max_memory_reserved: %fGB"%(torch.cuda.max_memory_reserved(0)/1024/1024/1024)
+            #print(m)
+            log_msg(m)
             sys.stdout.flush()
             meters *= 0
         
@@ -113,3 +180,10 @@ for epoch in range(args.epoch):
 
         if total_step >= args.warmup and total_step % args.kl_anneal_iter == 0:
             beta = min(args.max_beta, beta + args.step_beta)
+        gc.collect() #Added
+        _nbatch+=1
+        del  loss, kl_div, wacc, iacc, tacc, sacc
+        torch.cuda.empty_cache()
+    log_msg("Finished epoch")
+log_msg("Finished epochs. Done")
+
